@@ -2,3 +2,8 @@
 .vscode/
 
 venv*/
+
+data/
+experiments/
+
+*.pyc
