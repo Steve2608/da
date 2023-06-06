@@ -1,13 +1,14 @@
-from torch.utils.data import Dataset as TorchDataset
 import random
+
+from torch.utils.data import Dataset as TorchDataset
 
 
 # collecting Dictionary data containing actual sequential data, labels and domain labels
 class ProcessedDataset(TorchDataset):
     def __init__(self, tensors):
-        self.data = tensors['data']
-        self.labels = tensors['labels']
-        self.domain_labels = tensors['domain_labels'].long()
+        self.data = tensors["data"]
+        self.labels = tensors["labels"]
+        self.domain_labels = tensors["domain_labels"].long()
 
     def __getitem__(self, index):
         return self.data[index], self.domain_labels[index], self.labels[index]

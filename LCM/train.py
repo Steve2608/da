@@ -79,19 +79,21 @@ def evaluate(model, data_loader, loss, device):
 
 
 def mae(y, y_pred):
-    return torch.mean(torch.abs(y-y_pred))
+    return torch.mean(torch.abs(y - y_pred))
 
 
 def rmse(y, y_pred):
-    return torch.sqrt(torch.mean((y-y_pred)**2))
+    return torch.sqrt(torch.mean((y - y_pred) ** 2))
 
 
 # wrapping training and evaluation function for the number of epochs
 def train_model(model, da_model, train_loader, test_loader, loss, optim, epochs, device, logger):
     test_loss, test_mae, test_rmse = evaluate(model, test_loader, loss, device)
-    logger.info('Evaluation Loss at the beginning of the Training: %0.4f' % test_loss)
+    logger.info("Evaluation Loss at the beginning of the Training: %0.4f" % test_loss)
     for i in range(epochs):
         train_loss, da_loss = train(model, da_model, train_loader, loss, optim, device)
         test_loss, test_mae, test_rmse = evaluate(model, test_loader, loss, device)
-        logger.info(f'EPOCH {(i+1):03d}: clf_loss={train_loss:.4f}, da_loss={da_loss:.4f}, test_loss ={test_loss:.4f},'
-                    f'test_mae ={test_mae:.4f}, test_rmse ={test_rmse:.4f}')
+        logger.info(
+            f"EPOCH {(i+1):03d}: clf_loss={train_loss:.4f}, da_loss={da_loss:.4f}, test_loss ={test_loss:.4f},"
+            f"test_mae ={test_mae:.4f}, test_rmse ={test_rmse:.4f}"
+        )

@@ -1,14 +1,14 @@
-from torchvision.datasets import MNIST
-import torch.utils.data as data
-import os
 import errno
+import os
+
 import torch
+import torch.utils.data as data
 from PIL import Image
+from torchvision.datasets import MNIST
 
 
 def get_mnist(base_dir="data", train=True, transform=None, download=True):
-    return MNIST(os.path.join(base_dir, 'mnist'), train=train, transform=transform,
-                 download=download)
+    return MNIST(os.path.join(base_dir, "mnist"), train=train, transform=transform, download=download)
 
 
 def get_mnistm(base_dir, train=True, transform=None, download=True):
@@ -29,8 +29,8 @@ class MNISTM(data.Dataset):
 
     def __init__(self, base_dir="data", train=True, transform=None, download=False):
         super(MNISTM, self).__init__()
-        self.mnist_root = os.path.join(base_dir, 'mnist')
-        self.mnistm_root = os.path.join(base_dir, 'mnistm')
+        self.mnist_root = os.path.join(base_dir, "mnist")
+        self.mnistm_root = os.path.join(base_dir, "mnistm")
         self.transform = transform
         self.train = train  # training set or test set
 
@@ -78,15 +78,17 @@ class MNISTM(data.Dataset):
             return len(self.test_data)
 
     def _check_exists(self):
-        return os.path.exists(os.path.join(self.mnistm_root, self.processed_folder, self.training_file)) and \
-               os.path.exists(os.path.join(self.mnistm_root, self.processed_folder, self.test_file))
+        return os.path.exists(
+            os.path.join(self.mnistm_root, self.processed_folder, self.training_file)
+        ) and os.path.exists(os.path.join(self.mnistm_root, self.processed_folder, self.test_file))
 
     def download(self):
         """Download the MNIST data."""
         # import essential packages
-        from six.moves import urllib
         import gzip
         import pickle
+
+        from six.moves import urllib
         from torchvision import datasets
 
         # check if dataset already exists
