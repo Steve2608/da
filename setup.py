@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from io import open
-from setuptools import setup
+import pathlib
 
+from setuptools import setup
 
 setup(
     name="da",
@@ -13,7 +13,7 @@ setup(
     url="https://github.com/CPJKU/da",
     license="GPLv2",
     packages=["da"],
-    long_description=open("README.md", encoding="utf-8").read(),
+    long_description=pathlib.Path("README.md").read_text(),
     long_description_content_type="text/markdown",
     include_package_data=True,
     keywords=["deep learning", "pytorch", "AI", "domain adaptation"],
@@ -27,5 +27,9 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
 )
