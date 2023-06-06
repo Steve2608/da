@@ -162,7 +162,7 @@ if __name__ == "__main__":
         exp_folder = args.exp_dir
     else:
         # create experiment folder
-        timestr = str(args.da_type) + time.strftime("%Y%m%d-%H%M%S")
+        timestr = f"{args.da_type}-{time.strftime('%Y%m%d-%H%M%S')}"
         exp_folder = os.path.join("experiments", timestr)
         os.makedirs(exp_folder)
         print("Created experiment folder: ", exp_folder)
