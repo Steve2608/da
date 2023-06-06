@@ -1,17 +1,20 @@
-import torch
 import math
+from typing import MutableMapping
+
+import torch
 
 # adapted from:
 # https://github.com/ZongxianLee/MMD_Loss.Pytorch/blob/master/mmd_loss.py
 
 
-def mmd_loss(embeds, domain_labels, kernel_mul, kernel_num, fix_sigma, da_info):
-    loss = torch.tensor(0., device=domain_labels.device)
+def mmd_loss(embeds, domain_labels, kernel_mul, kernel_num, fix_sigma, da_info: MutableMapping = None):
+    loss = torch.tensor(0.0, device=domain_labels.device)
     # split into source and target samples
     unique_dl = domain_labels.unique()
     # if a batch with samples of only one domain is encountered - return 0 as loss
     if len(unique_dl) == 1:
         return loss
+    
     src_mask = domain_labels == unique_dl[0]
     tgt_mask = domain_labels == unique_dl[1]
 
@@ -20,16 +23,22 @@ def mmd_loss(embeds, domain_labels, kernel_mul, kernel_num, fix_sigma, da_info):
         src_embed = embed[src_mask]
         tgt_embed = embed[tgt_mask]
         embed_loss = mmd(src_embed, tgt_embed, kernel_mul, kernel_num, fix_sigma)
-        da_info['embed_losses'].append(embed_loss.detach().cpu())
+
+        if da_info and "embed_losses" in da_info:
+            da_info["embed_losses"].append(embed_loss.detach().cpu())
+
         loss += embed_loss
+
     return loss
 
 
 def gaussian_kernel(src_embed, tgt_embed, kernel_mul, kernel_num, fix_sigma):
     """Given source and target embeddings calculates kernel matrix based on given specific parameters."""
     if torch.mean(torch.abs(src_embed) + torch.abs(tgt_embed)) <= 1e-7:
-        print("Warning: feature representations tend towards zero. "
-              "Consider decreasing 'da_lambda' or using lambda schedule.")
+        print(
+            "Warning: feature representations tend towards zero. "
+            "Consider decreasing 'da_lambda' or using lambda schedule."
+        )
     n_samples = int(src_embed.size()[0] + tgt_embed.size()[0])
     total = torch.cat([src_embed, tgt_embed], dim=0)
     total0 = total.unsqueeze(0).expand(int(total.size(0)), int(total.size(0)), int(total.size(1)))
@@ -38,9 +47,9 @@ def gaussian_kernel(src_embed, tgt_embed, kernel_mul, kernel_num, fix_sigma):
     if fix_sigma:
         bandwidth = fix_sigma
     else:
-        bandwidth = torch.sum(l2_distance.detach()) / (n_samples ** 2 - n_samples)
+        bandwidth = torch.sum(l2_distance.detach()) / (n_samples**2 - n_samples)
     bandwidth /= kernel_mul ** (kernel_num // 2)  # shift bandwidth to the left
-    bandwidth_list = [bandwidth * (kernel_mul ** i) for i in range(kernel_num)]
+    bandwidth_list = [bandwidth * (kernel_mul**i) for i in range(kernel_num)]
     kernel_val = [torch.exp(-l2_distance / (bandwidth_temp + 1e-5)) for bandwidth_temp in bandwidth_list]
     return sum(kernel_val)
 

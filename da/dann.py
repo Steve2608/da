@@ -1,16 +1,21 @@
+import warnings
+from typing import MutableMapping
+
 import torch
 import torch.nn.functional as F
+from sklearn.metrics import balanced_accuracy_score
 
 from da.da_helpers import RevGrad
-from sklearn.metrics import balanced_accuracy_score
-import warnings
-warnings.simplefilter('ignore')
+
+warnings.simplefilter("ignore")
 
 
-def dann_loss(embeds, domain_labels, grad_scale_factor, da_net, da_info, reduction):
-    loss = torch.tensor(0., device=domain_labels.device)
-    da_info['embed_accuracies'] = []
-    da_info['embed_balanced_accuracies'] = []
+def dann_loss(embeds, domain_labels, grad_scale_factor, da_net, reduction, da_info: MutableMapping = None):
+    if da_info:
+        da_info["embed_accuracies"] = []
+        da_info["embed_balanced_accuracies"] = []
+
+    loss = torch.tensor(0.0, device=domain_labels.device)
     for i in range(len(embeds)):
         # RevGrad is static - only one grad_scale_factor possible for all embeddings
         embeds[i] = RevGrad.apply(embeds[i], grad_scale_factor)
@@ -21,11 +26,17 @@ def dann_loss(embeds, domain_labels, grad_scale_factor, da_net, da_info, reducti
         embed_acc = (da_pred.max(dim=1)[1] == domain_labels).float().sum() / len(domain_labels)
         embed_bacc = balanced_accuracy_score(domain_labels.tolist(), da_pred.max(dim=1)[1].tolist())
         loss += embed_loss
-        da_info['embed_losses'].append(embed_loss.detach().cpu())
-        da_info['embed_accuracies'].append(embed_acc.detach().cpu())
-        da_info['embed_balanced_accuracies'].append(embed_bacc)
+
+        if da_info:
+            if "embed_losses" in da_info:
+                da_info["embed_losses"].append(embed_loss.detach().cpu())
+            if "embed_accuracies" in da_info:
+                da_info["embed_accuracies"].append(embed_acc.detach().cpu())
+            if "embed_balanced_accuracies" in da_info:
+                da_info["embed_balanced_accuracies"].append(embed_bacc)
+
     if reduction == "mean":
-        return loss/len(embeds)
+        return loss / len(embeds)
     else:
         return loss
 

@@ -3,6 +3,7 @@ import torch
 
 class RevGrad(torch.autograd.Function):
     """Utility class to reverse gradient in case of DANN."""
+
     @staticmethod
     def forward(ctx, input_, scale_grad_down_factor):
         ctx.save_for_backward(input_)

@@ -1,16 +1,18 @@
+import math
+from typing import MutableMapping
+
+import numpy as np
 import torch
 from torch.autograd import grad
-import numpy as np
-import math
 
 
-def wdgrl_update(embeds, domain_labels, optimizer, critic_iter, gp_da_lambda, da_net, da_info):
+def wdgrl_update(embeds, domain_labels, optimizer, critic_iter, gp_da_lambda, da_net, da_info: MutableMapping = None):
     # critic tries to maximize Wasserstein distance
-    total_gp_loss = torch.tensor(0., device=domain_labels.device)
+    total_gp_loss = torch.tensor(0.0, device=domain_labels.device)
     unique_dl = domain_labels.unique(sorted=True)
     # if a batch with samples of only one domain is encountered - return 0 as loss
     if len(unique_dl) == 1:
-        return torch.tensor(0., device=domain_labels.device)
+        return torch.tensor(0.0, device=domain_labels.device)
     src_mask = domain_labels == unique_dl[0]
     tgt_mask = domain_labels == unique_dl[1]
 
@@ -22,8 +24,10 @@ def wdgrl_update(embeds, domain_labels, optimizer, critic_iter, gp_da_lambda, da
             src_embed = embed[src_mask].detach()
             tgt_embed = embed[tgt_mask].detach()
             if torch.mean(torch.abs(src_embed) + torch.abs(tgt_embed)) <= 1e-7:
-                print("Warning: feature representations tend towards zero. "
-                      "Consider decreasing 'da_lambda' or using lambda schedule.")
+                print(
+                    "Warning: feature representations tend towards zero. "
+                    "Consider decreasing 'da_lambda' or using lambda schedule."
+                )
             src_critic = da_net.nets[i](src_embed)
             tgt_critic = da_net.nets[i](tgt_embed)
             # estimation of wasserstein distance
@@ -34,17 +38,21 @@ def wdgrl_update(embeds, domain_labels, optimizer, critic_iter, gp_da_lambda, da
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-    da_info['gp_loss'] = total_gp_loss
+
+    if da_info and "gp_loss" in da_info:
+        da_info["gp_loss"] = total_gp_loss
 
 
-def wdgrl_loss(embeds, domain_labels, da_net, da_info):
-    wd_sim_list = []
-    wd_meas_list = []
-    loss = torch.tensor(0., device=domain_labels.device)
+def wdgrl_loss(embeds, domain_labels, da_net, da_info: MutableMapping = None):
+    loss = torch.tensor(0.0, device=domain_labels.device)
+    # split into source and target samples
     unique_dl = domain_labels.unique()
     # if a batch with samples of only one domain is encountered - return 0 as loss
     if len(unique_dl) == 1:
         return loss
+
+    wd_sim_list = []
+    wd_meas_list = []
     src_mask = domain_labels == unique_dl[0]
     tgt_mask = domain_labels == unique_dl[1]
 
@@ -56,11 +64,19 @@ def wdgrl_loss(embeds, domain_labels, da_net, da_info):
         tgt_pred = pred[tgt_mask]
         wd = src_pred.mean() - tgt_pred.mean()
         loss += wd
-        da_info['embed_losses'].append(wd.detach().cpu())
+
+        if da_info and "embed_losses" in da_info:
+            da_info["embed_losses"].append(wd.detach().cpu())
+
         wd_sim_list.append(src_pred.mean().item())
         wd_meas_list.append(tgt_pred.mean().item())
-    da_info['wd_sim_mean'] = torch.tensor(np.sum(wd_sim_list))
-    da_info['wd_meas_mean'] = torch.tensor(np.sum(wd_meas_list))
+
+    if da_info:
+        if "wd_sim_mean" in da_info:
+            da_info["wd_sim_mean"] = torch.tensor(np.sum(wd_sim_list))
+        if "wd_meas_mean" in da_info:
+            da_info["wd_meas_mean"] = torch.tensor(np.sum(wd_meas_list))
+
     return loss
 
 
@@ -81,9 +97,14 @@ def gradient_penalty(da_net, src_embed, tgt_embed):
     interpolates = src_embed_rep + alpha * differences
     interpolates = torch.cat([interpolates, src_embed_rep, tgt_embed_rep]).requires_grad_()
     preds = da_net(interpolates)
-    gradients = grad(outputs=preds, inputs=interpolates,
-                     grad_outputs=torch.ones_like(preds),
-                     retain_graph=True, create_graph=True, only_inputs=True)[0]
+    gradients = grad(
+        outputs=preds,
+        inputs=interpolates,
+        grad_outputs=torch.ones_like(preds),
+        retain_graph=True,
+        create_graph=True,
+        only_inputs=True,
+    )[0]
     gradient_norm = gradients.norm(2, dim=1)
-    gp = ((gradient_norm - 1)**2).mean()
+    gp = ((gradient_norm - 1) ** 2).mean()
     return gp

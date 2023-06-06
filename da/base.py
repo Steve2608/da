@@ -2,14 +2,15 @@
 Contains the base class 'DABase' as the entry point for creating a new alignment component.
 """
 
-import torch.nn as nn
-import torch
-import os
 import json
+import os
 from typing import List
 
-from da.helpers import get_activation, single_unit, build_units
-from da import cmd, dann, wdgrl, mmd, swd, coral, deep_j_dot
+import torch
+import torch.nn as nn
+
+from da import cmd, coral, dann, deep_j_dot, mmd, swd, wdgrl
+from da.helpers import build_units, get_activation, single_unit
 
 
 class DABase:
@@ -74,21 +75,21 @@ class DABase:
             Automatically called, returns updated value of 'da_lambda'
     """
 
-    def __init__(self,
-                 embeds_size: list,
-                 embeds_idx: tuple = (-1,),
-                 da_type: str = 'dann',
-                 da_lambda: float = 1.0,
-                 lambda_auto_schedule: bool = False,
-                 lambda_pretrain_steps: int = 10000,
-                 lambda_inc_steps: int = 100000,
-                 lambda_final: float = 1.0,
-                 num_domains: int = 2,
-                 num_classes: int = 10,
-                 adv_config: dict = {},
-                 da_spec_config: dict = {}
-                 ):
-
+    def __init__(
+        self,
+        embeds_size: list,
+        embeds_idx: tuple = (-1,),
+        da_type: str = "dann",
+        da_lambda: float = 1.0,
+        lambda_auto_schedule: bool = False,
+        lambda_pretrain_steps: int = 10000,
+        lambda_inc_steps: int = 100000,
+        lambda_final: float = 1.0,
+        num_domains: int = 2,
+        num_classes: int = 10,
+        adv_config: dict = {},
+        da_spec_config: dict = {},
+    ):
         """
         Sets up ingredients needed for domain adaptation.
 
@@ -138,7 +139,7 @@ class DABase:
         self.num_domains = num_domains
         self.num_classes = num_classes
 
-        da_spec_config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'da_spec_conf.json')
+        da_spec_config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "da_spec_conf.json")
         assert os.path.exists(da_spec_config_file)
         # load da algorithm's standard config and update with given config
         with open(da_spec_config_file) as f:
@@ -148,7 +149,7 @@ class DABase:
 
         # load adversarial net standard config in case of wdgrl or dann and update with given config
         if da_type in ["wdgrl", "dann"]:
-            adv_config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'adv_conf.json')
+            adv_config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "adv_conf.json")
             assert os.path.exists(adv_config_file)
             with open(adv_config_file) as f:
                 self.adv_config = json.load(f)
@@ -170,35 +171,35 @@ class DABase:
         """Sets up an alignment component of a specific type."""
         if self.da_type == "dann":
             # Domain Adversarial Training of Neural Networks
-            self.da_net = get_da_net(self.adv_config['da_net_config'], self.embeds_size, self.embeds_idx,
-                                     self.num_domains)
+            self.da_net = get_da_net(
+                self.adv_config["da_net_config"], self.embeds_size, self.embeds_idx, self.num_domains
+            )
             # if dann should be updated inside package and not via gradient reversal
-            if self.da_spec_config['dann']['auto_critic_update']:
-                self.da_optimizer = get_optimizer(self.da_net.get_params(), **self.adv_config['da_optimizer_config'])
+            if self.da_spec_config["dann"]["auto_critic_update"]:
+                self.da_optimizer = get_optimizer(self.da_net.get_params(), **self.adv_config["da_optimizer_config"])
         elif self.da_type == "cmd":
             # Central Moment Discrepancy
             # no da net required - works directly on the embeddings (activations)
             assert self.num_domains == 2
-            assert self.da_spec_config['cmd']['n_moments'] >= 1
+            assert self.da_spec_config["cmd"]["n_moments"] >= 1
         elif self.da_type == "wdgrl":
             # Wasserstein Distance Guided Representation Learning
             # WDGRL uses two optimizers instead of gradient reversal (according to original paper)
             assert self.num_domains == 2
-            self.da_net = get_da_net(self.adv_config['da_net_config'], self.embeds_size, self.embeds_idx,
-                                     n_outs=1)
-            self.da_optimizer = get_optimizer(self.da_net.get_params(), **self.adv_config['da_optimizer_config'])
+            self.da_net = get_da_net(self.adv_config["da_net_config"], self.embeds_size, self.embeds_idx, n_outs=1)
+            self.da_optimizer = get_optimizer(self.da_net.get_params(), **self.adv_config["da_optimizer_config"])
         elif self.da_type == "swd":
             assert self.num_domains == 2
         elif self.da_type == "mmd":
             assert self.num_domains == 2
-            assert self.da_spec_config['mmd']['kernel_num'] >= 1
+            assert self.da_spec_config["mmd"]["kernel_num"] >= 1
         elif self.da_type == "coral":
             assert self.num_domains == 2
         elif self.da_type == "jdot":
             assert self.num_domains == 2
             # deepjdot currently not implemented for regression
             assert self.num_classes is not None
-            self.deepJDot = deep_j_dot.DeepJDot(self.num_classes, self.da_spec_config['jdot']['jdot_alpha'])
+            self.deepJDot = deep_j_dot.DeepJDot(self.num_classes, self.da_spec_config["jdot"]["jdot_alpha"])
 
         if self.da_net:
             print("DA Net: ", self.da_net)
@@ -239,12 +240,14 @@ class DABase:
         else:
             return self.da_lambda + self.lambda_inc_val
 
-    def get_da_loss(self,
-                    embeds: List[torch.Tensor],
-                    domain_labels: torch.Tensor,
-                    labels: torch.Tensor = None,
-                    predictions: torch.Tensor = None,
-                    reduction = "sum"):
+    def get_da_loss(
+        self,
+        embeds: List[torch.Tensor],
+        domain_labels: torch.Tensor,
+        labels: torch.Tensor = None,
+        predictions: torch.Tensor = None,
+        reduction="sum",
+    ):
         """Calculates weighted domain adaptation loss and gathers additional information like losses/accuracies achieved
         for each received embedding.
 
@@ -278,9 +281,9 @@ class DABase:
             assert labels.device == predictions.device == domain_labels.device
             assert len(domain_labels) == len(labels) == len(predictions)
 
-        loss = torch.tensor(0., device=domain_labels.device)
+        loss = torch.tensor(0.0, device=domain_labels.device)
         # statistics that are logged by algorithms
-        da_info = {'embed_losses': []}
+        da_info = {"embed_losses": []}
 
         # get correct embeds (filter them)
         try:
@@ -299,30 +302,53 @@ class DABase:
         if self.da_type == "dann":
             # bring net to correct device
             self.da_net.nets.to(domain_labels.device)
-            if self.da_spec_config['dann']['auto_critic_update']:
-                dann.dann_update(embeds, domain_labels, self.da_optimizer, self.da_spec_config['dann']['critic_iter'],
-                                 self.da_net)
+            if self.da_spec_config["dann"]["auto_critic_update"]:
+                dann.dann_update(
+                    embeds, domain_labels, self.da_optimizer, self.da_spec_config["dann"]["critic_iter"], self.da_net
+                )
 
-            loss += dann.dann_loss(embeds, domain_labels, self.da_spec_config['dann']['grad_scale_factor'],
-                                   self.da_net, da_info, reduction=reduction)
+            loss += dann.dann_loss(
+                embeds,
+                domain_labels,
+                self.da_spec_config["dann"]["grad_scale_factor"],
+                self.da_net,
+                reduction,
+                da_info,
+            )
         elif self.da_type == "cmd":
-            loss += cmd.cmd_loss(embeds, domain_labels, self.da_spec_config['cmd']['n_moments'], da_info)
+            loss += cmd.cmd_loss(embeds, domain_labels, self.da_spec_config["cmd"]["n_moments"], da_info)
         elif self.da_type == "wdgrl":
             # bring net to correct device
             self.da_net.nets.to(domain_labels.device)
             # first update critic
-            wdgrl.wdgrl_update(embeds, domain_labels, self.da_optimizer, self.da_spec_config['wdgrl']['critic_iter'],
-                               self.da_spec_config['wdgrl']['gp_da_lambda'], self.da_net,
-                               da_info)
+            wdgrl.wdgrl_update(
+                embeds,
+                domain_labels,
+                self.da_optimizer,
+                self.da_spec_config["wdgrl"]["critic_iter"],
+                self.da_spec_config["wdgrl"]["gp_da_lambda"],
+                self.da_net,
+                da_info,
+            )
             # next calculate loss used to update feature extractor
             loss += wdgrl.wdgrl_loss(embeds, domain_labels, self.da_net, da_info)
         elif self.da_type == "mmd":
-            loss += mmd.mmd_loss(embeds, domain_labels, self.da_spec_config['mmd']['kernel_mul'],
-                                 self.da_spec_config['mmd']['kernel_num'],
-                                 self.da_spec_config['mmd']['fix_sigma'], da_info)
+            loss += mmd.mmd_loss(
+                embeds,
+                domain_labels,
+                self.da_spec_config["mmd"]["kernel_mul"],
+                self.da_spec_config["mmd"]["kernel_num"],
+                self.da_spec_config["mmd"]["fix_sigma"],
+                da_info,
+            )
         elif self.da_type == "swd":
-            loss += swd.swd_loss(embeds, domain_labels, self.da_spec_config['swd']['multiplier'],
-                                 self.da_spec_config['swd']['p'], da_info)
+            loss += swd.swd_loss(
+                embeds,
+                domain_labels,
+                self.da_spec_config["swd"]["multiplier"],
+                self.da_spec_config["swd"]["p"],
+                da_info,
+            )
         elif self.da_type == "coral":
             loss += coral.coral_loss(embeds, domain_labels, da_info)
         elif self.da_type == "jdot":
@@ -353,9 +379,9 @@ class DANetworks:
 
     def __init__(self, net_config, embeds_size, n_outs):
         self.nets = []
-        layers_width = net_config['layers_width'] # specifies nr of layers and their width
-        act_funct = get_activation(net_config['act_function']) # activation function of each layer
-        dropout = net_config['dropout'] # dropout on each layers
+        layers_width = net_config["layers_width"]  # specifies nr of layers and their width
+        act_funct = get_activation(net_config["act_function"])  # activation function of each layer
+        dropout = net_config["dropout"]  # dropout on each layers
 
         # loop over all embedding layers that should be processed later by a da network
         for input_size in embeds_size:

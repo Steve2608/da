@@ -1,14 +1,17 @@
-import torch
 import math
+from typing import MutableMapping
+
+import torch
 
 
-def coral_loss(embeds, domain_labels, da_info):
-    loss = torch.tensor(0., device=domain_labels.device)
+def coral_loss(embeds, domain_labels, da_info: MutableMapping = None):
+    loss = torch.tensor(0.0, device=domain_labels.device)
     # split into source and target samples
     unique_dl = domain_labels.unique()
     # if a batch with samples of only one domain is encountered - return 0 as loss
     if len(unique_dl) == 1:
         return loss
+
     src_mask = domain_labels == unique_dl[0]
     tgt_mask = domain_labels == unique_dl[1]
 
@@ -17,8 +20,12 @@ def coral_loss(embeds, domain_labels, da_info):
         src_embed = embed[src_mask]
         tgt_embed = embed[tgt_mask]
         embed_loss = coral(src_embed, tgt_embed)
-        da_info['embed_losses'].append(embed_loss.detach().cpu())
+
+        if da_info and "embed_losses" in da_info:
+            da_info["embed_losses"].append(embed_loss.detach().cpu())
+
         loss += embed_loss
+
     return loss
 
 
@@ -41,6 +48,6 @@ def coral(src_embed, tgt_embed):
     tgt_cov = comp_cov(tgt_embed_rep)
 
     # squared matrix frobenius norm
-    loss = torch.sum((src_cov - tgt_cov)**2)
+    loss = torch.sum((src_cov - tgt_cov) ** 2)
     loss = loss / (4 * d * d)
     return loss

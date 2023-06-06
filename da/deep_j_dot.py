@@ -1,6 +1,8 @@
+from typing import MutableMapping
+
+import ot
 import torch
 import torch.nn.functional as F
-import ot
 from scipy.spatial.distance import cdist
 
 # pytorch adaptation of original implementation by authors of paper:
@@ -13,8 +15,8 @@ class DeepJDot:
         self.alpha = alpha
 
     def optimize_gamma(self, gs_batch, gt_batch, ys, ft_pred):
-        C0 = cdist(gs_batch, gt_batch, metric='sqeuclidean')
-        C1 = cdist(ys, ft_pred, metric='sqeuclidean')  # official repo uses squared euclidean distance here
+        C0 = cdist(gs_batch, gt_batch, metric="sqeuclidean")
+        C1 = cdist(ys, ft_pred, metric="sqeuclidean")  # official repo uses squared euclidean distance here
         C = self.alpha * C0 + C1
         # distance maxtrix C is cost matrix
         # using optimal transport theory get the coupling matrix
@@ -28,18 +30,21 @@ class DeepJDot:
 
     def align_loss(self, gamma, gs_batch, gt_batch):
         # squared euclidean distance
-        gdist = torch.cdist(gs_batch, gt_batch)**2
+        gdist = torch.cdist(gs_batch, gt_batch) ** 2
         return self.alpha * torch.sum(gamma * gdist)
 
-    def jdot_loss(self, embeds, domain_labels, labels, predictions, da_info):
-        loss = torch.tensor(0., device=domain_labels.device)
+    def jdot_loss(self, embeds, domain_labels, labels, predictions, da_info: MutableMapping = None):
+        loss = torch.tensor(0.0, device=domain_labels.device)
         # split into source and target samples
         unique_dl = domain_labels.unique()
         # if a batch with samples of only one domain is encountered - return 0 as loss
         if len(unique_dl) == 1:
             return loss
-        da_info['jdot_cat_losses'] = []
-        da_info['jdot_align_losses'] = []
+
+        if da_info:
+            da_info["jdot_cat_losses"] = []
+            da_info["jdot_align_losses"] = []
+
         src_mask = domain_labels == unique_dl[0]
         tgt_mask = domain_labels == unique_dl[1]
 
@@ -54,20 +59,34 @@ class DeepJDot:
             gs_batch = embed[src_mask]
             gt_batch = embed[tgt_mask]
             if torch.mean(torch.abs(gs_batch) + torch.abs(gt_batch)) <= 1e-7:
-                print("Warning: feature representations tend towards zero. "
-                      "Consider decreasing 'da_lambda' or using lambda schedule.")
+                print(
+                    "Warning: feature representations tend towards zero. "
+                    "Consider decreasing 'da_lambda' or using lambda schedule."
+                )
             embed_loss, embed_cat_loss, embed_align_loss = self._jdot_loss(gs_batch, gt_batch, y_true_src, y_pred_tgt)
-            da_info['embed_losses'].append(embed_loss.detach().cpu())
-            da_info['jdot_cat_losses'].append(embed_cat_loss.detach().cpu())
-            da_info['jdot_align_losses'].append(embed_align_loss.detach().cpu())
+
+            if da_info:
+                if "embed_losses" in da_info:
+                    da_info["embed_losses"].append(embed_loss.detach().cpu())
+                if "jdot_cat_losses" in da_info:
+                    da_info["jdot_cat_losses"].append(embed_cat_loss.detach().cpu())
+                if "jdot_align_losses" in da_info:
+                    da_info["jdot_align_losses"].append(embed_align_loss.detach().cpu())
+
             loss += embed_loss
+
         return loss
 
     def _jdot_loss(self, gs_batch, gt_batch, y_true_src, y_pred_tgt):
         # calculate coupling matrix (determines which samples are aligned to each other, based on features and labels)
-        gamma = torch.from_numpy(self.optimize_gamma(gs_batch.detach().cpu().numpy(), gt_batch.detach().cpu().numpy(),
-                                                     y_true_src.cpu().numpy(), y_pred_tgt.detach().cpu().numpy())
-                                 ).to(device=y_true_src.device)
+        gamma = torch.from_numpy(
+            self.optimize_gamma(
+                gs_batch.detach().cpu().numpy(),
+                gt_batch.detach().cpu().numpy(),
+                y_true_src.cpu().numpy(),
+                y_pred_tgt.detach().cpu().numpy(),
+            )
+        ).to(device=y_true_src.device)
 
         cat_loss = self.classifier_cat_loss(gamma, y_true_src, y_pred_tgt)
         align_loss = self.align_loss(gamma, gs_batch, gt_batch)

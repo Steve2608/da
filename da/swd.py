@@ -1,14 +1,17 @@
-import torch
 import math
+from typing import MutableMapping
+
+import torch
 
 
-def swd_loss(embeds, domain_labels, multiplier, p, da_info):
-    loss = torch.tensor(0., device=domain_labels.device)
+def swd_loss(embeds, domain_labels, multiplier, p, da_info: MutableMapping = None):
+    loss = torch.tensor(0.0, device=domain_labels.device)
     # split into source and target samples
     unique_dl = domain_labels.unique()
     # if a batch with samples of only one domain is encountered - return 0 as loss
     if len(unique_dl) == 1:
         return loss
+
     src_mask = domain_labels == unique_dl[0]
     tgt_mask = domain_labels == unique_dl[1]
 
@@ -17,14 +20,20 @@ def swd_loss(embeds, domain_labels, multiplier, p, da_info):
         src_embed = embed[src_mask]
         tgt_embed = embed[tgt_mask]
         embed_loss = swd(src_embed, tgt_embed, multiplier, p)
-        da_info['embed_losses'].append(embed_loss.detach().cpu())
+
+        if da_info and "embed_losses" in da_info:
+            da_info["embed_losses"].append(embed_loss.detach().cpu())
+
         loss += embed_loss
+
     return loss
 
 
 def swd(src_embed, tgt_embed, multiplier, p):
-    projections = torch.zeros((src_embed.size(1), src_embed.size(1) * multiplier),
-                              device=tgt_embed.device).normal_(0, 1)
+    projections = torch.zeros(
+        (src_embed.size(1), src_embed.size(1) * multiplier),
+        device=tgt_embed.device,
+    ).normal_(0, 1)
     projections = projections / torch.norm(projections, p=p, dim=0, keepdim=True)
 
     # repeat target batch size to be the same size as source
