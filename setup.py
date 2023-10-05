@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import pathlib
 
 from setuptools import setup
@@ -17,16 +15,13 @@ setup(
     long_description_content_type="text/markdown",
     include_package_data=True,
     keywords=["deep learning", "pytorch", "AI", "domain adaptation"],
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     setup_requires=[],
-    install_requires=["numpy>=1.21.5", "POT>=0.8.0", "scipy>=1.7.3", "torch>=1.10.1"],
+    install_requires=pathlib.Path("requirements.txt").read_text().split("\n"),
     classifiers=[
-        "Environment :: Console",
         "Natural Language :: English",
         "Development Status :: 3 - Alpha",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
