@@ -10,5 +10,3 @@ __author_email__ = [
     "florian.schmid@jku.at",
     "shahed.masoudian@jku.at",
 ]
-
-from da.da.base import DABase
