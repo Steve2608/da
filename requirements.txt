@@ -1,9 +1,9 @@
-pillow~=10.4.0
+pillow~=11.0.0
 POT~=0.9.0
 scikit-learn~=1.5.0
 scipy~=1.14.0
 six~=1.16.0
-torch~=2.3.0
-torchvision~=0.18.0
+torch~=2.5.0
+torchvision~=0.20.0
 tqdm~=4.66.0
 typing_extensions~=4.12.0
